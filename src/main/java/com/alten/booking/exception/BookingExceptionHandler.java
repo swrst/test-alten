@@ -12,11 +12,10 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class BookingExceptionHandler extends ResponseEntityExceptionHandler {
 
-    public static final String ROOM_BOOKED_MESSAGE = "Room already booked for the selected dates!";
 
     @ExceptionHandler(value = {RoomBookedException.class})
     protected ResponseEntity<Object> handleRoomException(RuntimeException ex, WebRequest request) {
-        ApiError error = new ApiError(HttpStatus.BAD_REQUEST, ROOM_BOOKED_MESSAGE);
+        ApiError error = new ApiError(HttpStatus.BAD_REQUEST, ex.getMessage());
         return handleExceptionInternal(ex, error, new HttpHeaders(), HttpStatus.BAD_REQUEST, request);
     }
 

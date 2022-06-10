@@ -9,6 +9,8 @@ import com.alten.booking.model.Room;
 import com.alten.booking.model.UpdateRequest;
 import com.alten.booking.repository.ReservationRepository;
 import com.alten.booking.utils.ReservationStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,8 +19,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.alten.booking.utils.ErrorMessage.*;
+
 @RestController
 public class BookingController {
+
+    Logger log = LoggerFactory.getLogger(BookingController.class);
 
     private final Room room;
     private final ReservationRepository reservationRepository;
@@ -32,7 +38,24 @@ public class BookingController {
     @GetMapping(path = "/checkRoomAvailability")
     public Room getRoomAvailability() {
         this.room.setNextAvailableDates(findAvailableDates());
+        log.info("Room availability dates retrieved");
         return room;
+    }
+
+    @GetMapping(path = "/checkReservation")
+    public Reservation getRoomAvailability(@RequestParam Long reservationId) {
+        if (Objects.isNull(reservationId)) {
+            throw new InvalidRequestException(RESERVATION_ID_REQUIRED);
+        }
+        Optional<Reservation> reservation = reservationRepository.findById(reservationId);
+        if (reservation.isEmpty()) {
+            log.error(RESERVATION_NOT_FOUND + reservationId);
+            throw new InvalidRequestException(RESERVATION_NOT_FOUND + reservationId);
+        }
+
+        log.info("Reservation retrieved");
+
+        return reservation.get();
     }
 
     @PostMapping(path = "/roomReservation")
@@ -60,16 +83,21 @@ public class BookingController {
             List<LocalDate> availableDates = findAvailableDates();
 
             boolean isReservationPossible = isReservationPossible(availableDates, reservationStartDate, reservationEndDate, reservationDays);
+            log.debug("isReservationPossible: {} ", isReservationPossible);
+
             if (isReservationPossible) {
                 Reservation reservation = saveReservation(reservationStartDate, reservationEndDate);
+                log.info("Reservation completed");
                 return createReservationResponse(reservation);
             } else {
                 //Couldn't find available slot, room booked for the selected dates
-                throw new RoomBookedException();
+                log.error(ROOM_BOOKED);
+                throw new RoomBookedException(ROOM_BOOKED);
             }
 
         } else {
-            throw new InvalidRequestException("Reservation request is null!");
+            log.error(REQUEST_NULL);
+            throw new InvalidRequestException(REQUEST_NULL);
         }
 
     }
@@ -79,7 +107,8 @@ public class BookingController {
     public ReservationResponse reservationUpdate(@RequestBody UpdateRequest updateRequest) {
 
         if (Objects.isNull(updateRequest.getReservationId())) {
-            throw new InvalidRequestException("Reservation ID required!");
+            log.error(RESERVATION_ID_REQUIRED);
+            throw new InvalidRequestException(RESERVATION_ID_REQUIRED);
         }
 
         LocalDate reservationStartDate = updateRequest.getStartDate();
@@ -102,14 +131,17 @@ public class BookingController {
 
             if (isReservationPossible) {
                 Reservation reservationUpdated = updateReservation(reservation.get(), reservationStartDate, reservationEndDate);
+                log.info("Reservation with id {} updated", updateRequest.getReservationId());
                 return createReservationResponse(reservationUpdated);
             } else {
                 //Couldn't find available slot, room booked for the selected dates
-                throw new RoomBookedException();
+                log.error(ROOM_BOOKED);
+                throw new RoomBookedException(ROOM_BOOKED);
             }
 
         } else {
-            throw new InvalidRequestException("Reservation not found for ID: " + updateRequest.getReservationId());
+            log.error(RESERVATION_NOT_FOUND + updateRequest.getReservationId());
+            throw new InvalidRequestException(RESERVATION_NOT_FOUND + updateRequest.getReservationId());
         }
     }
 
@@ -121,49 +153,57 @@ public class BookingController {
         if (reservation.isPresent()) {
             deleteReservation(reservationId);
         } else {
-            throw new InvalidRequestException("Reservation not found for ID: " + reservationId);
+            log.error(RESERVATION_NOT_FOUND, reservationId);
+            throw new InvalidRequestException(RESERVATION_NOT_FOUND + reservationId);
         }
 
         ReservationResponse cancelResponse = new ReservationResponse();
         cancelResponse.setReservationId(reservationId);
         cancelResponse.setStatus(ReservationStatus.CANCELLED);
+
+        log.info("Reservation with id {} cancelled", reservationId);
         return cancelResponse;
     }
 
     /**
      * Validation of reservation request parameters
+     *
      * @param reservationDate booking startDate
-     * @param days total reservation days
+     * @param days            total reservation days
      * @throws InvalidRequestException when finds one parameter not valid
      */
     private void isReservationDateValid(LocalDate reservationDate, Integer days) {
         // NULL REQUEST CHECK
         if (Objects.isNull(reservationDate) || Objects.isNull(days)) {
-            throw new InvalidRequestException("Date not selected");
+            throw new InvalidRequestException(DATE_NOT_SELECTED);
         } else {
             // DATES CHECK
             LocalDate todayDate = LocalDate.now(); // current sys date
             // 30 days  in advance check
             if (reservationDate.isAfter(todayDate.plusDays(30))) {
-                throw new InvalidRequestException("Cannot reserve the room more than 30 days in advance");
+                throw new InvalidRequestException(NO_MORE_THAN_30);
             }
             // Future date check
             if (reservationDate.isBefore(todayDate)) {
-                throw new InvalidRequestException("Please select a date in the future");
+                throw new InvalidRequestException(FUTURE_DATE);
             }
             // Reservation start next day of booking check
             if (reservationDate.isEqual(todayDate)) {
-                throw new InvalidRequestException("Cannot make a reservation the same day of the booking, please select a date starting from tomorrow");
+                throw new InvalidRequestException(NO_RESERVATION_TODAY);
             }
             // Days of reservation check (1-3 range)
             if (days < 0 || days > 2) {
-                throw new InvalidRequestException("Please select a day range from 1 minimum to 3 maximum");
+                throw new InvalidRequestException(RESERVATION_RANGE);
             }
         }
+
+        log.debug("Reservation params check ok");
+
     }
 
     /**
      * Retrieves all the reservations and calculate the next available dates
+     *
      * @return a list of the available in the next 30 days
      */
     private List<LocalDate> findAvailableDates() {
