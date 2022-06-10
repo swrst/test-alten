@@ -210,15 +210,21 @@ public class BookingController {
         for (int i = 0; i < availableDates.size() - 1; i++) {
             LocalDate firstFreeDay = availableDates.get(i);
             if (reservationStartDate.isEqual(firstFreeDay)) {
-                for (int j = i + 1; j < availableDates.size() - 1; j++) {
-                    LocalDate secondFreeDay = availableDates.get(j);
-                    if (secondFreeDay.isBefore(reservationEndDate) || secondFreeDay.isEqual(reservationEndDate)) {
-                        long daysBetween = firstFreeDay.until(secondFreeDay, ChronoUnit.DAYS);
+                //if reservation for more than 1 day, check the second available date
+                if (reservationDays > 0) {
+                    for (int j = i + 1; j < availableDates.size() - 1; j++) {
+                        LocalDate secondFreeDay = availableDates.get(j);
+                        if (secondFreeDay.isBefore(reservationEndDate) || secondFreeDay.isEqual(reservationEndDate)) {
+                            long daysBetween = firstFreeDay.until(secondFreeDay, ChronoUnit.DAYS);
 
-                        if (daysBetween >= reservationDays) {
-                            return true;
+                            if (daysBetween >= reservationDays) {
+                                return true;
+                            }
                         }
                     }
+                } else {
+                    //reservation for 1 day and that date is available
+                    return true;
                 }
             }
         }
