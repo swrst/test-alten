@@ -1,24 +1,17 @@
 package com.alten.booking.model;
 
-import com.alten.booking.utils.ReservationStatus;
-
 import java.time.LocalDate;
 
-public class ReservationResponse {
+public class UpdateRequest {
 
     private Long reservationId;
     private LocalDate startDate;
     private LocalDate endDate;
-    private ReservationStatus status;
 
-    public ReservationResponse() {
-    }
-
-    public ReservationResponse(Long reservationId, LocalDate startDate, LocalDate endDate, ReservationStatus status) {
+    public UpdateRequest(Long reservationId, LocalDate startDate, LocalDate endDate) {
         this.reservationId = reservationId;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.status = status;
     }
 
     public Long getReservationId() {
@@ -43,13 +36,5 @@ public class ReservationResponse {
 
     public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
-    }
-
-    public ReservationStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ReservationStatus status) {
-        this.status = status;
     }
 }

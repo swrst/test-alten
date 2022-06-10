@@ -14,18 +14,16 @@ public class Reservation {
     @Id
     @GeneratedValue
     private Long reservationId;
-    //From 1 to 3
-    private Integer days;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate fromDate;
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate toDate;
     private ReservationStatus status;
 
-    public Reservation() {}
+    public Reservation() {
+    }
 
-    public Reservation(Integer days, LocalDate fromDate, LocalDate toDate, ReservationStatus status) {
-        this.days = days;
+    public Reservation(LocalDate fromDate, LocalDate toDate, ReservationStatus status) {
         this.fromDate = fromDate;
         this.toDate = toDate;
         this.status = status;
@@ -37,14 +35,6 @@ public class Reservation {
 
     public void setReservationId(Long reservationId) {
         this.reservationId = reservationId;
-    }
-
-    public Integer getDays() {
-        return days;
-    }
-
-    public void setDays(Integer days) {
-        this.days = days;
     }
 
     public LocalDate getFromDate() {
